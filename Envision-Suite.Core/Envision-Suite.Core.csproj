@@ -1,0 +1,23 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>EnvisionSuite.Core</RootNamespace>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <PublishAot>true</PublishAot>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <AssemblyName>EnvisionSuite</AssemblyName>
+    <IsPackable>false</IsPackable>
+    <Authors>Alexis Hann;Chase Redmon</Authors>
+    <Product>Envision Suite</Product>
+    <Description>A Linux suite for configuring and managing SCUF Envision Pro V2 and Envision Pro V2 Wired controllers.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <DirectPInvoke Include="libc"/>
+  </ItemGroup>
+
+</Project>

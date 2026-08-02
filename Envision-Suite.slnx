@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="Solution Items">
+    <File Path="LICENSE" />
+    <File Path="README.md" />
+    <File Path=".editorconfig" />
+    <File Path=".gitignore" />
+  </Folder>
+
+  <Project Path="Envision-Suite.Core/Envision-Suite.Core.csproj" />
+</Solution>
