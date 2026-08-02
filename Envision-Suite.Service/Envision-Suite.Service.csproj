@@ -1,0 +1,21 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Envision_Suite.Service</RootNamespace>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>EnvisionSuite</AssemblyName>
+    <IsPackable>false</IsPackable>
+    <Authors>Alexis Hann;Chase Redmon</Authors>
+    <Product>Envision Suite</Product>
+    <Description>A Linux suite for configuring and managing SCUF Envision Pro V2 and Envision Pro V2
+      Wired controllers.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Envision-Suite.Core\Envision-Suite.Core.csproj" />
+  </ItemGroup>
+
+</Project>

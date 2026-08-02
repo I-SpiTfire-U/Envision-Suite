@@ -1,7 +1,9 @@
-using EnvisionSuite.Core.Discovery;
+﻿using EnvisionSuite.Core.Discovery;
 using EnvisionSuite.Core.Input;
 using EnvisionSuite.Core.Output;
 using EnvisionSuite.Core.Services;
+
+namespace EnvisionSuite.Service.src.Main;
 
 public static class Program
 {
@@ -10,7 +12,7 @@ public static class Program
     using CancellationTokenSource cancellationTokenSource = new();
     RegisterShutdownHandler(cancellationTokenSource);
 
-    Console.WriteLine("Scuf Envision Pro V2 to Xbox Controller Bridge\nSearching for Scuf Envision Pro controller...");
+    Console.WriteLine("SCUF Envision Pro V2 to Xbox Controller Bridge\nSearching for SCUF Envision Pro controller...");
     DiscoveredDevices? discoveredDevices = DeviceDiscovery.FindController();
     if (discoveredDevices is null)
     {
