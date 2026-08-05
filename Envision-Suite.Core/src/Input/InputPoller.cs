@@ -3,60 +3,47 @@ using EnvisionSuite.Core.Interop;
 namespace EnvisionSuite.Core.Input;
 
 /// <summary>
-///     Flags indicating which input sources have data available after polling.
-/// </summary>
-[Flags]
-public enum PollResult
-{
-  None = 0,
-  EvdevReady = 1,
-  HidrawReady = 2,
-  Error = 4,
-  Timeout = 8
-}
-
-/// <summary>
-///     Multiplexes input from evdev and hidraw devices using poll(2).
-///     This allows the main loop to efficiently wait for input from multiple
-///     sources without busy-waiting or using multiple threads.
+///   Multiplexes input from evdev and hidraw devices using poll(2).
+///   This allows the main loop to efficiently wait for input from multiple
+///   sources without busy-waiting or using multiple threads.
 /// </summary>
 /// <remarks>
-///     <para>
-///         The poll timeout determines the maximum latency between input and response.
-///         Lower timeouts provide more responsive input but use more CPU.
-///     </para>
-///     <para>
-///         <b>Ownership:</b> This class does NOT own the file descriptors - they are owned
-///         by the <see cref="EvdevReader" /> and <see cref="HidrawReader" /> instances passed
-///         to the constructor. Do not dispose of this class's readers separately.
-///     </para>
-///     <para>
-///         <b>Thread safety:</b> This class is not thread-safe. Use from a single thread only.
-///     </para>
+///   <para>
+///     The poll timeout determines the maximum latency between input and response.
+///     Lower timeouts provide more responsive input but use more CPU.
+///   </para>
+///   <para>
+///     <b>Ownership:</b> This class does NOT own the file descriptors - they are owned
+///     by the <see cref="EvdevReader" /> and <see cref="HidrawReader" /> instances passed
+///     to the constructor. Do not dispose of this class's readers separately.
+///   </para>
+///   <para>
+///     <b>Thread safety:</b> This class is not thread-safe. Use from a single thread only.
+///   </para>
 /// </remarks>
 /// <remarks>
-///     Creates a new input poller for the given devices.
+///   Creates a new input poller for the given devices.
 /// </remarks>
-/// <param name="evdev">The evdev reader (required).</param>
-/// <param name="hidraw">The hidraw reader (optional, may be null).</param>
-public sealed class InputPoller(EvdevReader evdev, HidrawReader? hidraw)
+/// <param name="evdevReader">The evdev reader (required).</param>
+/// <param name="hidrawReader">The hidraw reader (optional, may be null).</param>
+public sealed class InputPoller(EvdevReader evdevReader, HidrawReader? hidrawReader)
 {
-  private readonly Int32 _EvdevfileDescriptor = evdev.FileDescriptor;
-  private readonly Boolean _HasHidraw = hidraw is not null;
-  private readonly Int32 _HidrawfileDescriptor = hidraw?.FileDescriptor ?? -1;
+  private readonly Int32 _EvdevFileDescriptor = evdevReader.FileDescriptor;
+  private readonly Boolean _HasHidraw = hidrawReader is not null;
+  private readonly Int32 _HidrawFileDescriptor = hidrawReader?.FileDescriptor ?? -1;
 
   /// <summary>
-  ///     Waits for input to be available on any of the polled devices.
-  ///     Uses the poll(2) system call to efficiently multiplex multiple file descriptors.
+  ///   Waits for input to be available on any of the polled devices.
+  ///   Uses the poll(2) system call to efficiently multiplex multiple file descriptors.
   /// </summary>
   /// <param name="timeoutMs">
-  ///     Maximum time to wait in milliseconds. Lower values provide more responsive
-  ///     input (4ms ≈ 250Hz polling is recommended for gaming). A value of -1 would
-  ///     wait indefinitely, but this is not recommended as it prevents clean shutdown.
+  ///   Maximum time to wait in milliseconds. Lower values provide more responsive
+  ///   input (4ms ≈ 250Hz polling is recommended for gaming). A value of -1 would
+  ///   wait indefinitely, but this is not recommended as it prevents clean shutdown.
   /// </param>
   /// <returns>
-  ///     A <see cref="PollResult" /> indicating which devices have data available,
-  ///     or if an error/timeout occurred.
+  ///   A <see cref="PollResult" /> indicating which devices have data available,
+  ///   or if an error/timeout occurred.
   /// </returns>
   public unsafe PollResult Poll(Int32 timeoutMs)
   {
@@ -65,18 +52,18 @@ public sealed class InputPoller(EvdevReader evdev, HidrawReader? hidraw)
 
     fileDescriptors[0] = new PollfileDescriptor
     {
-      FileDescriptor = _EvdevfileDescriptor,
+      FileDescriptor = _EvdevFileDescriptor,
       Events = Libc.POLLIN,
-      PreviousEvents = 0
+      ReturnedEvents = 0
     };
 
     if (_HasHidraw)
     {
       fileDescriptors[1] = new PollfileDescriptor
       {
-        FileDescriptor = _HidrawfileDescriptor,
+        FileDescriptor = _HidrawFileDescriptor,
         Events = Libc.POLLIN,
-        PreviousEvents = 0
+        ReturnedEvents = 0
       };
     }
 
@@ -84,7 +71,8 @@ public sealed class InputPoller(EvdevReader evdev, HidrawReader? hidraw)
     do
     {
       result = Libc.Poll(fileDescriptors, (UIntPtr)fileDescriptorCount, timeoutMs);
-    } while (result < 0 && Libc.GetLastError() == Libc.EINTR);
+    }
+    while (result < 0 && Libc.GetLastError() == Libc.EINTR);
 
     if (result < 0)
     {
@@ -96,30 +84,55 @@ public sealed class InputPoller(EvdevReader evdev, HidrawReader? hidraw)
       return PollResult.Timeout;
     }
 
-    var pollResult = PollResult.None;
+    PollResult pollResult = ParseEvdevEvents(fileDescriptors[0].ReturnedEvents);
 
-    if ((fileDescriptors[0].PreviousEvents & (Libc.POLLIN | Libc.POLLERR | Libc.POLLHUP)) != 0)
+    if (_HasHidraw)
     {
-      if ((fileDescriptors[0].PreviousEvents & Libc.POLLIN) != 0)
-      {
-        pollResult |= PollResult.EvdevReady;
-      }
-
-      if ((fileDescriptors[0].PreviousEvents & (Libc.POLLERR | Libc.POLLHUP)) != 0)
-      {
-        pollResult |= PollResult.Error;
-      }
+      pollResult |= ParseHidrawEvents(fileDescriptors[1].ReturnedEvents);
     }
 
-    if (_HasHidraw && (fileDescriptors[1].PreviousEvents & (Libc.POLLIN | Libc.POLLERR | Libc.POLLHUP)) != 0)
+    return pollResult;
+  }
+
+  private static PollResult ParseEvdevEvents(Int16 returnedEvents)
+  {
+    PollResult pollResult = PollResult.None;
+
+    if ((returnedEvents & Libc.POLLIN) != 0)
     {
-      if ((fileDescriptors[1].PreviousEvents & Libc.POLLIN) != 0)
-      {
-        pollResult |= PollResult.HidrawReady;
-      }
+      pollResult |= PollResult.EvdevReady;
     }
 
-    // Don't set error for hidraw issues, it's optional
+    if ((returnedEvents & (Libc.POLLHUP | Libc.POLLNVAL)) != 0)
+    {
+      pollResult |= PollResult.EvdevDisconnected;
+    }
+    else if ((returnedEvents & Libc.POLLERR) != 0)
+    {
+      pollResult |= PollResult.Error;
+    }
+
+    return pollResult;
+  }
+
+  private static PollResult ParseHidrawEvents(Int16 returnedEvents)
+  {
+    PollResult pollResult = PollResult.None;
+
+    if ((returnedEvents & Libc.POLLIN) != 0)
+    {
+      pollResult |= PollResult.HidrawReady;
+    }
+
+    if ((returnedEvents & (Libc.POLLHUP | Libc.POLLNVAL)) != 0)
+    {
+      pollResult |= PollResult.HidrawDisconnected;
+    }
+    else if ((returnedEvents & Libc.POLLERR) != 0)
+    {
+      pollResult |= PollResult.Error;
+    }
+
     return pollResult;
   }
 }

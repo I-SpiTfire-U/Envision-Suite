@@ -36,16 +36,18 @@ public sealed class VirtualGamepad : IDisposable
 
   public void Dispose()
   {
-    if (!_Disposed)
+    if (_Disposed)
     {
-      _Disposed = true;
-
-      unsafe
-      {
-        Libc.Ioctl(_FileDescriptor, UinputIoctl.UI_DEV_DESTROY, null);
-      }
-      Libc.Close(_FileDescriptor);
+      return;
     }
+    
+    _Disposed = true;
+
+    unsafe
+    {
+      Libc.Ioctl(_FileDescriptor, UinputIoctl.UI_DEV_DESTROY, null);
+    }
+    Libc.Close(_FileDescriptor);
   }
 
   public static VirtualGamepad? Create()
@@ -53,9 +55,9 @@ public sealed class VirtualGamepad : IDisposable
     Int32 fileDescriptor = Libc.Open(UinputPath, Libc.O_WRONLY | Libc.O_NONBLOCK);
     if (fileDescriptor < 0)
     {
-      Int32 errno = Libc.GetLastError();
+      Int32 nativeErrorNumber = Libc.GetLastError();
       Console.Error.WriteLine($"""
-      Failed to open {UinputPath}: {Libc.StrError(errno)} (errno={errno})
+      Failed to open {UinputPath}: {Libc.StrError(nativeErrorNumber)} (nativeErrorNumber={nativeErrorNumber})
       Make sure uinput module is loaded: sudo modprobe uinput
       Check permissions on /dev/uinput
       """);
@@ -189,7 +191,7 @@ public sealed class VirtualGamepad : IDisposable
     QueueAxisIfValueChanged(AbsCodes.ABS_Y, filteredControllerState.LeftStickY, _PreviousInputState.LeftStickY);
     QueueAxisIfValueChanged(AbsCodes.ABS_RX, filteredControllerState.RightStickX, _PreviousInputState.RightStickX);
     QueueAxisIfValueChanged(AbsCodes.ABS_RY, filteredControllerState.RightStickY, _PreviousInputState.RightStickY);
-
+    
     QueueAxisIfValueChanged(AbsCodes.ABS_Z, filteredControllerState.LeftTrigger, _PreviousInputState.LeftTrigger);
     QueueAxisIfValueChanged(AbsCodes.ABS_RZ, filteredControllerState.RightTrigger, _PreviousInputState.RightTrigger);
     
@@ -278,8 +280,8 @@ public sealed class VirtualGamepad : IDisposable
       _ConsecutiveWriteErrorCount++;
       if (_ConsecutiveWriteErrorCount == 1 || _ConsecutiveWriteErrorCount % 1000 == 0)
       {
-        Int32 errno = Libc.GetLastError();
-        Console.Error.WriteLine($"[warning] Failed to write to uinput device: {Libc.StrError(errno)} (errno={errno}, consecutive errors={_ConsecutiveWriteErrorCount}).");
+        Int32 nativeErrorNumber = Libc.GetLastError();
+        Console.Error.WriteLine($"[warning] Failed to write to uinput device: {Libc.StrError(nativeErrorNumber)} (nativeErrorNumber={nativeErrorNumber}, consecutive errors={_ConsecutiveWriteErrorCount}).");
       }
     }
   }

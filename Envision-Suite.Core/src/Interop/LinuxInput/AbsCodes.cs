@@ -1,12 +1,12 @@
 namespace EnvisionSuite.Core.Interop.LinuxInput;
 
 /// <summary>
-///     Absolute axis codes for gamepad axes.
-///     These are the standard Linux kernel axis codes used by evdev.
+///   Absolute axis codes for gamepad axes.
+///   These are the standard Linux kernel axis codes used by evdev.
 /// </summary>
 /// <remarks>
-///     Note: The Scuf Envision Pro V2 uses non-standard axis assignments.
-///     See <see cref="Mapping.EnvisionMapping" /> for the actual mappings.
+///   Note: The Scuf Envision Pro V2 uses non-standard axis assignments.
+///   See <see cref="Mapping.EnvisionMapping" /> for the actual mappings.
 /// </remarks>
 public static class AbsCodes
 {

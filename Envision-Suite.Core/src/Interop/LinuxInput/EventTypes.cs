@@ -1,7 +1,7 @@
 namespace EnvisionSuite.Core.Interop.LinuxInput;
 
 /// <summary>
-///     Event type constants for Linux input events.
+///   Event type constants for Linux input events.
 /// </summary>
 public static class EventTypes
 {

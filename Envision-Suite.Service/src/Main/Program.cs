@@ -22,8 +22,8 @@ public static class Program
 
     String hidrawDeviceStatus = String.IsNullOrEmpty(discoveredDevices.HidrawDevicePath)
       ? "not found (R2 trigger may not work)" : discoveredDevices.HidrawDevicePath;
-    String additionalEvdevStatus = discoveredDevices.AdditionalEvdevPaths.Count > 0
-      ? $"{discoveredDevices.AdditionalEvdevPaths.Count} found" : "None found";
+    String additionalEvdevStatus = discoveredDevices.AdditionalEvdevPaths.Length > 0
+      ? $"{discoveredDevices.AdditionalEvdevPaths.Length} found" : "None found";
 
     Console.WriteLine($"""
     Found evdev device: {discoveredDevices.EvdevDevicePath}

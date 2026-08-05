@@ -16,7 +16,7 @@ namespace EnvisionSuite.Core.Interop;
 ///   Creates a new hidraw device info structure (primarily for testing).
 /// </remarks>
 [StructLayout(LayoutKind.Sequential)]
-public readonly struct HidrawDevInfo(UInt32 busType, Int16 vendor, Int16 product)
+public readonly struct HidrawDevInfo(UInt32 busType, Int16 vendorId, Int16 productId)
 {
   /// <summary>
   ///   Bus type (e.g., BUS_USB = 0x03, BUS_BLUETOOTH = 0x05).
@@ -27,11 +27,11 @@ public readonly struct HidrawDevInfo(UInt32 busType, Int16 vendor, Int16 product
   ///   USB Vendor ID (VID) of the device.
   ///   Note: Kernel uses signed short, but USB IDs are semantically unsigned.
   /// </summary>
-  public readonly Int16 Vendor = vendor;
+  public readonly Int16 Vendor = vendorId;
 
   /// <summary>
   ///   USB Product ID (PID) of the device.
   ///   Note: Kernel uses signed short, but USB IDs are semantically unsigned.
   /// </summary>
-  public readonly Int16 Product = product;
+  public readonly Int16 Product = productId;
 }

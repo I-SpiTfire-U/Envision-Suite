@@ -5,14 +5,14 @@ namespace EnvisionSuite.Core.Mapping;
 public static class EnvisionMapping
 {
   /// <summary>
-  ///     Processes a single evdev input event and updates the input state.
+  ///   Processes a single evdev input event and updates the input state.
   /// </summary>
   /// <param name="inputEvent">The input event to process (passed by readonly reference to avoid copying).</param>
   /// <param name="inputState">The input state to update.</param>
   /// <remarks>
-  ///     Handles EV_ABS (axis), EV_KEY (button), and EV_SYN (sync) events.
-  ///     The sync event is ignored as state is processed continuously.
-  ///     Uses 'in' parameter for the 24-byte struct to avoid defensive copies while preventing mutation.
+  ///   Handles EV_ABS (axis), EV_KEY (button), and EV_SYN (sync) events.
+  ///   The sync event is ignored as state is processed continuously.
+  ///   Uses 'in' parameter for the 24-byte struct to avoid defensive copies while preventing mutation.
   /// </remarks>
   public static void ProcessEvdevEvent(in InputEvent inputEvent, InputState inputState)
   {
@@ -152,6 +152,7 @@ public static class EnvisionMapping
         break;
 
       case 0x13f: // Unknown Scuf button (code 319) Currently Ignored.
+      default:
         return;
     }
 

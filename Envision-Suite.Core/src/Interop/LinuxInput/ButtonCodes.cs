@@ -1,12 +1,12 @@
 namespace EnvisionSuite.Core.Interop.LinuxInput;
 
 /// <summary>
-///     Button/key codes for gamepad buttons.
-///     These are the standard Linux kernel button codes used by evdev.
+///   Button/key codes for gamepad buttons.
+///   These are the standard Linux kernel button codes used by evdev.
 /// </summary>
 /// <remarks>
-///     Note: The Scuf Envision Pro V2 uses non-standard button codes.
-///     See <see cref="Mapping.EnvisionMapping" /> for the actual mappings.
+///   Note: The Scuf Envision Pro V2 uses non-standard button codes.
+///   See <see cref="Mapping.EnvisionMapping" /> for the actual mappings.
 /// </remarks>
 public static class ButtonCodes
 {

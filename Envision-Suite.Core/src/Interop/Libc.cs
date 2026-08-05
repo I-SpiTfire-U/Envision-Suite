@@ -3,21 +3,21 @@ using System.Runtime.InteropServices;
 namespace EnvisionSuite.Core.Interop;
 
 /// <summary>
-///     P/Invoke bindings for essential libc functions.
-///     Uses LibraryImport for AOT compatibility and better performance.
+///   P/Invoke bindings for essential libc functions.
+///   Uses LibraryImport for AOT compatibility and better performance.
 /// </summary>
 /// <remarks>
-///     These are the core POSIX system calls needed for:
-///     - Opening and closing file descriptors (open, close)
-///     - Reading and writing data (read, write)
-///     - Device control (ioctl)
-///     - I/O multiplexing (poll)
-///     - Error handling (strerror)
+///   These are the core POSIX system calls needed for:
+///   - Opening and closing file descriptors (open, close)
+///   - Reading and writing data (read, write)
+///   - Device control (ioctl)
+///   - I/O multiplexing (poll)
+///   - Error handling (strerror)
 /// </remarks>
 public static partial class Libc
 {
   /// <summary>
-  ///     Opens a file or device.
+  ///   Opens a file or device.
   /// </summary>
   /// <param name="path">Path to the file or device.</param>
   /// <param name="flags">Open flags (O_RDONLY, O_WRONLY, O_RDWR, O_NONBLOCK, etc.).</param>
@@ -26,7 +26,7 @@ public static partial class Libc
   public static partial Int32 Open(String path, Int32 flags);
 
   /// <summary>
-  ///     Closes a file descriptor.
+  ///   Closes a file descriptor.
   /// </summary>s
   /// <param name="fileDescriptor">File descriptor to close.</param>
   /// <returns>0 on success, -1 on error.</returns>
@@ -34,7 +34,7 @@ public static partial class Libc
   public static partial Int32 Close(Int32 fileDescriptor);
 
   /// <summary>
-  ///     Reads data from a file descriptor.
+  ///   Reads data from a file descriptor.
   /// </summary>
   /// <param name="fileDescriptor">File descriptor to read from.</param>
   /// <param name="buf">Buffer to receive the data.</param>
@@ -44,7 +44,7 @@ public static partial class Libc
   public static unsafe partial IntPtr Read(Int32 fileDescriptor, void* buf, UIntPtr count);
 
   /// <summary>
-  ///     Writes data to a file descriptor.
+  ///   Writes data to a file descriptor.
   /// </summary>
   /// <param name="fileDescriptor">File descriptor to write to.</param>
   /// <param name="buf">Buffer containing the data to write.</param>
@@ -54,7 +54,7 @@ public static partial class Libc
   public static unsafe partial IntPtr Write(Int32 fileDescriptor, void* buf, UIntPtr count);
 
   /// <summary>
-  ///     Performs a device-specific control operation (with integer argument).
+  ///   Performs a device-specific control operation (with integer argument).
   /// </summary>
   /// <param name="fileDescriptor">File descriptor of the device.</param>
   /// <param name="request">Device-specific request code.</param>
@@ -64,7 +64,7 @@ public static partial class Libc
   public static unsafe partial Int32 Ioctl(Int32 fileDescriptor, UIntPtr request, Int32 value);
 
   /// <summary>
-  ///     Performs a device-specific control operation (with pointer argument).
+  ///   Performs a device-specific control operation (with pointer argument).
   /// </summary>
   /// <param name="fileDescriptor">File descriptor of the device.</param>
   /// <param name="request">Device-specific request code.</param>
@@ -74,9 +74,9 @@ public static partial class Libc
   public static unsafe partial Int32 Ioctl(Int32 fileDescriptor, UIntPtr request, void* arg);
 
   /// <summary>
-  ///     Waits for events on multiple file descriptors.
-  ///     This is the core I/O multiplexing function used to efficiently wait
-  ///     for input from multiple devices without busy-waiting.
+  ///   Waits for events on multiple file descriptors.
+  ///   This is the core I/O multiplexing function used to efficiently wait
+  ///   for input from multiple devices without busy-waiting.
   /// </summary>
   /// <param name="fileDescriptors">Array of PollfileDescriptor structures describing the file descriptors to monitor.</param>
   /// <param name="nfileDescriptors">Number of file descriptors in the array.</param>
@@ -89,7 +89,7 @@ public static partial class Libc
   private static partial IntPtr StrErrorpublic(Int32 errnum);
 
   /// <summary>
-  ///     Gets a human-readable error message for an error number.
+  ///   Gets a human-readable error message for an error number.
   /// </summary>
   /// <param name="errnum">Error number (from GetLastError).</param>
   /// <returns>Error message string.</returns>
@@ -125,6 +125,7 @@ public static partial class Libc
 
   /// <summary>Hang up (device disconnected).</summary>
   public const Int32 POLLHUP = 0x0010;
+  public const Int16 POLLNVAL = 0x0020;
 
   /// <summary>Interrupted system call - should retry.</summary>
   public const Int32 EINTR = 4;

@@ -3,12 +3,12 @@ using EnvisionSuite.Core.Interop;
 namespace EnvisionSuite.Core.Input;
 
 /// <summary>
-///     Reads raw HID reports from a Linux hidraw device.
-///     Hidraw provides direct access to HID (Human Interface Device) reports,
-///     which can contain data not exposed through the standard evdev interface.
-///     Note: On Scuf Envision Pro V2 hardware, both triggers are available via evdev,
-///     so hidraw reading is optional and currently disabled to avoid latency issues.
-///     This class is kept for potential V1 hardware support or future use.
+///   Reads raw HID reports from a Linux hidraw device.
+///   Hidraw provides direct access to HID (Human Interface Device) reports,
+///   which can contain data not exposed through the standard evdev interface.
+///   Note: On Scuf Envision Pro V2 hardware, both triggers are available via evdev,
+///   so hidraw reading is optional and currently disabled to avoid latency issues.
+///   This class is kept for potential V1 hardware support or future use.
 /// </summary>
 public sealed class HidrawReader : IDisposable
 {
@@ -19,31 +19,29 @@ public sealed class HidrawReader : IDisposable
     FileDescriptor = fileDescriptor;
   }
 
-  /// <summary>
-  ///     Gets the file descriptor for the hidraw device.
-  ///     Used by <see cref="InputPoller" /> to multiplex input from multiple devices.
-  /// </summary>
   public Int32 FileDescriptor { get; }
 
   public void Dispose()
   {
-    if (!_Disposed)
+    if (_Disposed)
     {
-      _Disposed = true;
-      Libc.Close(FileDescriptor);
+      return;
     }
+
+    _Disposed = true;
+    Libc.Close(FileDescriptor);
   }
 
   /// <summary>
-  ///     Opens a hidraw device for reading.
+  ///   Opens a hidraw device for reading.
   /// </summary>
   /// <param name="devicePath">
-  ///     Path to the hidraw device (e.g., "/dev/hidraw0").
-  ///     If empty or null, returns null immediately.
+  ///   Path to the hidraw device (e.g., "/dev/hidraw0").
+  ///   If empty or null, returns null immediately.
   /// </param>
   /// <returns>
-  ///     A <see cref="HidrawReader" /> instance, or null if the device could not be opened
-  ///     or the path was empty.
+  ///   A <see cref="HidrawReader" /> instance, or null if the device could not be opened
+  ///   or the path was empty.
   /// </returns>
   public static HidrawReader? Open(String? devicePath)
   {
@@ -77,8 +75,8 @@ public sealed class HidrawReader : IDisposable
   }
 
   /// <summary>
-  ///     Verifies that the opened hidraw device is the expected Scuf controller
-  ///     by checking its vendor and product IDs using the HIDIOCGRAWINFO ioctl.
+  ///   Verifies that the opened hidraw device is the expected Scuf controller
+  ///   by checking its vendor and product IDs using the HIDIOCGRAWINFO ioctl.
   /// </summary>
   /// <returns>True if the device matches the expected Scuf controller IDs.</returns>
   private unsafe Boolean VerifyDevice()
@@ -91,7 +89,6 @@ public sealed class HidrawReader : IDisposable
       return false;
     }
 
-    // Verify it's the Scuf controller
     const UInt16 ScufVendorId = 0x1b1c;
     const UInt16 ScufProductId = 0x3a08;
 
@@ -99,14 +96,14 @@ public sealed class HidrawReader : IDisposable
   }
 
   /// <summary>
-  ///     Reads a raw HID report from the device.
-  ///     This method is non-blocking - if no report is available, it returns 0 immediately.
+  ///   Reads a raw HID report from the device.
+  ///   This method is non-blocking - if no report is available, it returns 0 immediately.
   /// </summary>
   /// <param name="buffer">
-  ///     Buffer to receive the HID report. Should be at least 64 bytes for most controllers.
+  ///   Buffer to receive the HID report. Should be at least 64 bytes for most controllers.
   /// </param>
   /// <returns>
-  ///     The number of bytes read, 0 if no report was available, or -1 on error.
+  ///   The number of bytes read, 0 if no report was available, or -1 on error.
   /// </returns>
   public unsafe Int32 ReadReport(Span<Byte> buffer)
   {
@@ -121,11 +118,9 @@ public sealed class HidrawReader : IDisposable
 
       if (bytesRead < 0)
       {
-        Int32 errno = Libc.GetLastError();
-        // EAGAIN/EWOULDBLOCK means no data available (normal for non-blocking)
-        return errno == Libc.EAGAIN ? 0 : -1;
+        Int32 nativeErrorNumber = Libc.GetLastError();
+        return nativeErrorNumber == Libc.EAGAIN ? 0 : -1;
       }
-
       return (Int32)bytesRead;
     }
   }

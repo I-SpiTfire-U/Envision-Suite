@@ -2,15 +2,6 @@ namespace EnvisionSuite.Core.Mapping;
 
 public sealed class InputState
 {
-  /// <summary>
-  ///     Creates a shallow copy of this state.
-  ///     Useful for comparing previous and current states.
-  /// </summary>
-  /// <returns>A new <see cref="InputState" /> with the same values (dirty flag is NOT copied).</returns>
-  /// <remarks>
-  ///     Uses MemberwiseClone for maintainability - automatically includes any new fields.
-  ///     The dirty flag is reset to false in the clone.
-  /// </remarks>
   public InputState Clone()
   {
     InputState clone = (InputState)MemberwiseClone();
@@ -47,51 +38,32 @@ public sealed class InputState
     targetState.ButtonRightSAX = ButtonRightSAX;
   }
 
-  /// <summary>
-  ///     Left stick X-axis position.
-  ///     Range: -32768 (full left) to 32767 (full right), 0 is center.
-  /// </summary>
   public Int16 LeftStickX { get; set; }
-
-  /// <summary>
-  ///     Left stick Y-axis position.
-  ///     Range: -32768 (full up) to 32767 (full down), 0 is center.
-  /// </summary>
   public Int16 LeftStickY { get; set; }
-
-  /// <summary>
-  ///     Right stick X-axis position.
-  ///     Range: -32768 (full left) to 32767 (full right), 0 is center.
-  /// </summary>
   public Int16 RightStickX { get; set; }
-
-  /// <summary>
-  ///     Right stick Y-axis position.
-  ///     Range: -32768 (full up) to 32767 (full down), 0 is center.
-  /// </summary>
   public Int16 RightStickY { get; set; }
 
   /// <summary>
-  ///     Left trigger (LT/L2) position.
-  ///     Range: 0 (released) to 1023 (fully pressed).
+  ///   Left trigger (LT/L2) position.
+  ///   Range: 0 (released) to 1023 (fully pressed).
   /// </summary>
   public Int16 LeftTrigger { get; set; }
 
   /// <summary>
-  ///     Right trigger (RT/R2) position.
-  ///     Range: 0 (released) to 1023 (fully pressed).
+  ///   Right trigger (RT/R2) position.
+  ///   Range: 0 (released) to 1023 (fully pressed).
   /// </summary>
   public Int16 RightTrigger { get; set; }
 
   /// <summary>
-  ///     D-pad X-axis.
-  ///     Values: -1 (left), 0 (center), 1 (right).
+  ///   D-pad X-axis.
+  ///   Values: -1 (left), 0 (center), 1 (right).
   /// </summary>
   public SByte DpadX { get; set; }
 
   /// <summary>
-  ///     D-pad Y-axis.
-  ///     Values: -1 (up), 0 (center), 1 (down).
+  ///   D-pad Y-axis.
+  ///   Values: -1 (up), 0 (center), 1 (down).
   /// </summary>
   public SByte DpadY { get; set; }
 
@@ -146,10 +118,6 @@ public sealed class InputState
   /// <summary>Right SAX side-button state.</summary>
   public Boolean ButtonRightSAX { get; set; }
 
-  /// <summary>
-  ///     Gets whether the state has been modified since the last <see cref="ClearDirty" /> call.
-  ///     Used to determine if the virtual gamepad needs to emit new events.
-  /// </summary>
   public Boolean IsDirty { get; private set; }
 
   public void MarkDirty() =>

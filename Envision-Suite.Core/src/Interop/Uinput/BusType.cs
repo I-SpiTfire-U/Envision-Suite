@@ -1,8 +1,5 @@
 namespace EnvisionSuite.Core.Interop.Uinput;
 
-/// <summary>
-///     Bus type constants for device identification.
-/// </summary>
 public static class BusType
 {
   /// <summary>USB bus - used for USB-connected devices.</summary>
