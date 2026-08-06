@@ -85,11 +85,11 @@ public static class EnvisionMapping
         inputState.ButtonB = buttonIsPressed;
         break;
 
-      case ButtonCodes.BTN_C: // Y on 3a08 wireless receiver
+      case ButtonCodes.BTN_NORTH: // Y on 3a08 wireless receiver
         inputState.ButtonY = buttonIsPressed;
         break;
 
-      case ButtonCodes.BTN_NORTH: // X on 3a08 wireless receiver
+      case ButtonCodes.BTN_C: // X on 3a08 wireless receiver
         inputState.ButtonX = buttonIsPressed;
         break;
 
