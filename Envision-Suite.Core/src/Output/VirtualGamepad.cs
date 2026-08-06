@@ -22,11 +22,10 @@ public sealed class VirtualGamepad : IDisposable
 
   private const Int32 DpadMinimum = -1;
   private const Int32 DpadMaximum = 1;
-  private const Int32 MaximumEventsPerFrame = 26; // 8 axes + 15 buttons + 1 sync = 24 events
+  private const Int32 MaximumEventsPerFrame = 20; // 8 axes + 11 buttons + 1 sync = 20 events
 
   private readonly InputEvent[] _InputEventBuffer = new InputEvent[MaximumEventsPerFrame];
   private readonly Int32 _FileDescriptor;
-  private readonly InputState _PreviousInputState = new();
   private Int32 _ConsecutiveWriteErrorCount;
   private Int32 _QueuedEventCount;
   private Boolean _Disposed;
@@ -95,12 +94,6 @@ public sealed class VirtualGamepad : IDisposable
       ButtonCodes.BTN_MODE,           // Guide
       ButtonCodes.BTN_THUMBL,         // L3
       ButtonCodes.BTN_THUMBR,         // R3
-      ButtonCodes.BTN_TRIGGER_HAPPY1, // Paddle Top-Left
-      ButtonCodes.BTN_TRIGGER_HAPPY2, // Paddle Top-Right
-      ButtonCodes.BTN_TRIGGER_HAPPY3, // Paddle Bottom-Left
-      ButtonCodes.BTN_TRIGGER_HAPPY4, // Paddle Bottom-Right
-      ButtonCodes.BTN_TRIGGER_HAPPY5, // SAX Left
-      ButtonCodes.BTN_TRIGGER_HAPPY6  // SAX Right
     ];
 
     foreach (UInt16 buttonCode in buttons)
@@ -183,47 +176,38 @@ public sealed class VirtualGamepad : IDisposable
   private unsafe Boolean CreateVirtualDevice() =>
     Libc.Ioctl(_FileDescriptor, UinputIoctl.UI_DEV_CREATE, null) >= 0;
 
-  public void EmitControllerState(InputState filteredControllerState)
+  public void EmitControllerState(InputState currentInputState, InputState previousInputState, InputMapper inputMapper)
   {
     _QueuedEventCount = 0;
-
-    QueueAxisIfValueChanged(AbsCodes.ABS_X, filteredControllerState.LeftStickX, _PreviousInputState.LeftStickX);
-    QueueAxisIfValueChanged(AbsCodes.ABS_Y, filteredControllerState.LeftStickY, _PreviousInputState.LeftStickY);
-    QueueAxisIfValueChanged(AbsCodes.ABS_RX, filteredControllerState.RightStickX, _PreviousInputState.RightStickX);
-    QueueAxisIfValueChanged(AbsCodes.ABS_RY, filteredControllerState.RightStickY, _PreviousInputState.RightStickY);
     
-    QueueAxisIfValueChanged(AbsCodes.ABS_Z, filteredControllerState.LeftTrigger, _PreviousInputState.LeftTrigger);
-    QueueAxisIfValueChanged(AbsCodes.ABS_RZ, filteredControllerState.RightTrigger, _PreviousInputState.RightTrigger);
+    QueueAxisIfValueChanged(AbsCodes.ABS_X, currentInputState.LeftStickX, previousInputState.LeftStickX);
+    QueueAxisIfValueChanged(AbsCodes.ABS_Y, currentInputState.LeftStickY, previousInputState.LeftStickY);
+    QueueAxisIfValueChanged(AbsCodes.ABS_RX, currentInputState.RightStickX, previousInputState.RightStickX);
+    QueueAxisIfValueChanged(AbsCodes.ABS_RY, currentInputState.RightStickY, previousInputState.RightStickY);
     
-    QueueAxisIfValueChanged(AbsCodes.ABS_HAT0X, filteredControllerState.DpadX, _PreviousInputState.DpadX);
-    QueueAxisIfValueChanged(AbsCodes.ABS_HAT0Y, filteredControllerState.DpadY, _PreviousInputState.DpadY);
+    QueueAxisIfValueChanged(AbsCodes.ABS_Z, currentInputState.LeftTrigger, previousInputState.LeftTrigger);
+    QueueAxisIfValueChanged(AbsCodes.ABS_RZ, currentInputState.RightTrigger, previousInputState.RightTrigger);
+    
+    QueueAxisIfValueChanged(AbsCodes.ABS_HAT0X, currentInputState.DpadX, previousInputState.DpadX);
+    QueueAxisIfValueChanged(AbsCodes.ABS_HAT0Y, currentInputState.DpadY, previousInputState.DpadY);
 
-    QueueButtonIfStateChanged(ButtonCodes.BTN_SOUTH, filteredControllerState.ButtonA, _PreviousInputState.ButtonA);
-    QueueButtonIfStateChanged(ButtonCodes.BTN_EAST, filteredControllerState.ButtonB, _PreviousInputState.ButtonB);
-    QueueButtonIfStateChanged(ButtonCodes.BTN_NORTH, filteredControllerState.ButtonY, _PreviousInputState.ButtonY);
-    QueueButtonIfStateChanged(ButtonCodes.BTN_WEST, filteredControllerState.ButtonX, _PreviousInputState.ButtonX);
+    QueueMappedButtonIfStateChanged(ButtonCodes.BTN_SOUTH, VirtualButton.ButtonA, currentInputState, previousInputState, inputMapper);
+    QueueMappedButtonIfStateChanged(ButtonCodes.BTN_EAST, VirtualButton.ButtonB, currentInputState, previousInputState, inputMapper);
+    QueueMappedButtonIfStateChanged(ButtonCodes.BTN_WEST, VirtualButton.ButtonX, currentInputState, previousInputState, inputMapper);
+    QueueMappedButtonIfStateChanged(ButtonCodes.BTN_NORTH, VirtualButton.ButtonY, currentInputState, previousInputState, inputMapper);
 
-    QueueButtonIfStateChanged(ButtonCodes.BTN_TL, filteredControllerState.BumperLeft, _PreviousInputState.BumperLeft);
-    QueueButtonIfStateChanged(ButtonCodes.BTN_TR, filteredControllerState.BumperRight, _PreviousInputState.BumperRight);
+    QueueMappedButtonIfStateChanged(ButtonCodes.BTN_TL, VirtualButton.BumperLeft, currentInputState, previousInputState, inputMapper);
+    QueueMappedButtonIfStateChanged(ButtonCodes.BTN_TR, VirtualButton.BumperRight, currentInputState, previousInputState, inputMapper);
 
-    QueueButtonIfStateChanged(ButtonCodes.BTN_SELECT, filteredControllerState.ButtonSelect, _PreviousInputState.ButtonSelect);
-    QueueButtonIfStateChanged(ButtonCodes.BTN_START, filteredControllerState.ButtonStart, _PreviousInputState.ButtonStart);
-    QueueButtonIfStateChanged(ButtonCodes.BTN_MODE, filteredControllerState.ButtonGuide, _PreviousInputState.ButtonGuide);
+    QueueMappedButtonIfStateChanged(ButtonCodes.BTN_SELECT, VirtualButton.ButtonSelect, currentInputState, previousInputState, inputMapper);
+    QueueMappedButtonIfStateChanged(ButtonCodes.BTN_START, VirtualButton.ButtonStart, currentInputState, previousInputState, inputMapper);
+    QueueMappedButtonIfStateChanged(ButtonCodes.BTN_MODE, VirtualButton.ButtonGuide, currentInputState, previousInputState, inputMapper);
 
-    QueueButtonIfStateChanged(ButtonCodes.BTN_THUMBL, filteredControllerState.ThumbLeft, _PreviousInputState.ThumbLeft);
-    QueueButtonIfStateChanged(ButtonCodes.BTN_THUMBR, filteredControllerState.ThumbRight, _PreviousInputState.ThumbRight);
-
-    QueueButtonIfStateChanged(ButtonCodes.BTN_TRIGGER_HAPPY1, filteredControllerState.Paddle1, _PreviousInputState.Paddle1);
-    QueueButtonIfStateChanged(ButtonCodes.BTN_TRIGGER_HAPPY2, filteredControllerState.Paddle2, _PreviousInputState.Paddle2);
-    QueueButtonIfStateChanged(ButtonCodes.BTN_TRIGGER_HAPPY3, filteredControllerState.Paddle3, _PreviousInputState.Paddle3);
-    QueueButtonIfStateChanged(ButtonCodes.BTN_TRIGGER_HAPPY4, filteredControllerState.Paddle4, _PreviousInputState.Paddle4);
-    QueueButtonIfStateChanged(ButtonCodes.BTN_TRIGGER_HAPPY5, filteredControllerState.ButtonLeftSAX, _PreviousInputState.ButtonLeftSAX);
-    QueueButtonIfStateChanged(ButtonCodes.BTN_TRIGGER_HAPPY6, filteredControllerState.ButtonRightSAX, _PreviousInputState.ButtonRightSAX);
+    QueueMappedButtonIfStateChanged(ButtonCodes.BTN_THUMBL, VirtualButton.LeftStickClick, currentInputState, previousInputState, inputMapper);
+    QueueMappedButtonIfStateChanged(ButtonCodes.BTN_THUMBR, VirtualButton.RightStickClick, currentInputState, previousInputState, inputMapper);
 
     QueueInputEvent(EventTypes.EV_SYN, SynCodes.SYN_REPORT, 0);
     FlushQueuedEvents();
-
-    filteredControllerState.CopyTo(_PreviousInputState);
   }
 
   private void QueueAxisIfValueChanged(UInt16 code, Int32 value, Int32 previousValue)
@@ -232,6 +216,14 @@ public sealed class VirtualGamepad : IDisposable
     {
       QueueInputEvent(EventTypes.EV_ABS, code, value);
     }
+  }
+
+  private void QueueMappedButtonIfStateChanged(UInt16 code, VirtualButton targetButton, InputState currentInputState, InputState previousInputState, InputMapper inputMapper)
+  {
+    Boolean isPressed = inputMapper.ResolveButton(currentInputState, targetButton);
+    Boolean wasPressed = inputMapper.ResolveButton(previousInputState, targetButton);
+
+    QueueButtonIfStateChanged(code, isPressed, wasPressed);
   }
 
   private void QueueButtonIfStateChanged(UInt16 code, Boolean pressed, Boolean wasPressed)

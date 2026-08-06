@@ -102,11 +102,11 @@ public static class EnvisionMapping
         break;
 
       case ButtonCodes.BTN_TL2: // Left stick click (L3)
-        inputState.ThumbLeft = buttonIsPressed;
+        inputState.LeftStickClick = buttonIsPressed;
         break;
 
       case ButtonCodes.BTN_TR2: // Right stick click (R3)
-        inputState.ThumbRight = buttonIsPressed;
+        inputState.RightStickClick = buttonIsPressed;
         break;
 
       case ButtonCodes.BTN_TL: // Select on V2

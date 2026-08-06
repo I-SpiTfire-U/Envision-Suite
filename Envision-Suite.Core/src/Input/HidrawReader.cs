@@ -53,6 +53,14 @@ public sealed class HidrawReader : IDisposable
     Int32 fileDescriptor = Libc.Open(devicePath, Libc.O_RDONLY | Libc.O_NONBLOCK);
     if (fileDescriptor < 0)
     {
+      Int32 nativeErrorNumber = Libc.GetLastError();
+
+      Console.Error.WriteLine(
+        $"Failed to open {devicePath}: " +
+        $"{Libc.StrError(nativeErrorNumber)} " +
+        $"(nativeErrorNumber={nativeErrorNumber})"
+      );
+
       return null;
     }
 

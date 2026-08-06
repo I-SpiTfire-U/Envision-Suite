@@ -11,11 +11,15 @@ public sealed class BridgeService(EvdevReader evdevReader, HidrawReader? hidrawR
 
   private readonly EvdevReader _EvdevReader = evdevReader;
   private readonly InputFilter _InputFilter = new();
-  private readonly InputState _FilteredState = new();
   private readonly HidrawReader? _HidrawReader = hidrawReader;
   private readonly InputPoller _InputPoller = new(evdevReader, hidrawReader);
-  private readonly InputState _RawInputState = new();
   private readonly VirtualGamepad _VirtualGamepad = virtualGamepad;
+
+  private readonly InputState _CurrentInputState = new();
+  private readonly InputState _PreviousInputState = new();
+  private readonly InputState _RawInputState = new();
+
+  private readonly InputMapper _InputMapper = new();
 
   public void Run(CancellationToken cancellationToken)
   {
@@ -45,8 +49,10 @@ public sealed class BridgeService(EvdevReader evdevReader, HidrawReader? hidrawR
 
       if (_RawInputState.IsDirty)
       {
-        _InputFilter.Apply(_RawInputState, _FilteredState);
-        _VirtualGamepad.EmitControllerState(_FilteredState);
+        _InputFilter.Apply(_RawInputState, _CurrentInputState);
+        _VirtualGamepad.EmitControllerState(_CurrentInputState, _PreviousInputState, _InputMapper);
+
+        _CurrentInputState.CopyTo(_PreviousInputState);
         _RawInputState.ClearDirty();
       }
     }
