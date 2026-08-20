@@ -54,12 +54,12 @@ public readonly struct UinputAbsSetup
       return;
     }
 
-    throw new InvalidOperationException(
-      $"UinputAbsSetup layout mismatch. " +
-      $"Expected size {StructureSize}, AxisCode offset 0, and " +
-      $"AxisParameters offset 4. Actual size: {actualSize}, " +
-      $"AxisCode offset: {axisCodeOffset}, " +
-      $"AxisParameters offset: {axisParametersOffset}."
-    );
+    throw new InvalidOperationException($"""
+    UinputAbsSetup layout mismatch.
+    Expected size {StructureSize}, AxisCode offset 0, and
+    AxisParameters offset 4. Actual size: {actualSize},
+    AxisCode offset: {axisCodeOffset},
+    AxisParameters offset: {axisParametersOffset}.
+    """);
   }
 }

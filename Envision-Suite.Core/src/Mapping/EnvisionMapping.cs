@@ -151,7 +151,7 @@ public static class EnvisionMapping
         inputState.ButtonRightSAX = buttonIsPressed;
         break;
 
-      case 0x13f: // Unknown Scuf button (code 319) Currently Ignored.
+      case 0x13f: // Unknown SCUF button (code 319) Currently Ignored.
       default:
         return;
     }

@@ -4,7 +4,7 @@ namespace EnvisionSuite.Core.Mapping;
 
 public sealed class InputMapper
 {
-  private readonly ImmutableArray<InputMapping> _Mappings =
+  private readonly ImmutableArray<InputMapping> _InputMappings =
   [
     new ButtonMapping(PhysicalButton.ButtonA, VirtualButton.ButtonA),
     new ButtonMapping(PhysicalButton.ButtonB, VirtualButton.ButtonB),
@@ -33,8 +33,8 @@ public sealed class InputMapper
     new AxisMapping(PhysicalAxis.DpadY, VirtualAxis.DpadY, false)
   ];
 
-  private static Boolean IsPhysicalButtonPressed(InputState inputState, PhysicalButton button) =>
-    button switch
+  private static Boolean IsPhysicalButtonPressed(InputState inputState, PhysicalButton targetButton) =>
+    targetButton switch
     {
       PhysicalButton.ButtonA => inputState.ButtonA,
       PhysicalButton.ButtonB => inputState.ButtonB,
@@ -61,8 +61,8 @@ public sealed class InputMapper
       _ => false
     };
 
-  private static Int32 GetPhysicalAxisValue(InputState inputState, PhysicalAxis axis) =>
-    axis switch
+  private static Int32 GetPhysicalAxisValue(InputState inputState, PhysicalAxis targetAxis) =>
+    targetAxis switch
     {
       PhysicalAxis.LeftStickX => inputState.LeftStickX,
       PhysicalAxis.LeftStickY => inputState.LeftStickY,
@@ -75,50 +75,88 @@ public sealed class InputMapper
       _ => 0
     };
 
-  public Boolean ResolveButton(InputState inputState, VirtualButton target)
+  private static Boolean IsAxisActivated(Int32 axisValue, AxisDirection axisDirection, Int32 threshold) =>
+    axisDirection switch
+    {
+      AxisDirection.Positive => axisValue >= threshold,
+      AxisDirection.Negative => axisValue <= -threshold,
+      _ => false
+    };
+
+  public Boolean ResolveButton(InputState inputState, VirtualButton targetButton)
   {
-    if (target == VirtualButton.None)
+    if (targetButton == VirtualButton.None)
     {
       return false;
     }
 
-    foreach (InputMapping mapping in _Mappings)
+    foreach (InputMapping mapping in _InputMappings)
     {
-      if (mapping is ButtonMapping buttonMapping && buttonMapping.Target == target && IsPhysicalButtonPressed(inputState, buttonMapping.Source))
+      if (mapping is ButtonMapping buttonMapping && buttonMapping.Target == targetButton && IsPhysicalButtonPressed(inputState, buttonMapping.Source))
       {
         return true;
       }
 
-      if (mapping is AxisToButtonMapping axisMapping && axisMapping.Target == target)
+      if (mapping is not AxisToButtonMapping axisMapping || axisMapping.Target != targetButton)
       {
-        Int32 value = GetPhysicalAxisValue(inputState, axisMapping.Source);
+        continue;
+      }
 
-        if (IsAxisActivated(value, axisMapping.Direction, axisMapping.Threshold))
-        {
-          return true;
-        }
+      Int32 value = GetPhysicalAxisValue(inputState, axisMapping.Source);
+      if (IsAxisActivated(value, axisMapping.Direction, axisMapping.Threshold))
+      {
+        return true;
       }
     }
 
     return false;
   }
 
-  public Int32 ResolveAxis(InputState inputState, VirtualAxis target)
+  private static Int32 InvertAxisValue(Int32 axisValue) =>
+    Math.Clamp(-axisValue, Int16.MinValue, Int16.MaxValue);
+
+  private static Int32 ResolveAxisMappingValue(InputState inputState, AxisMapping axisMapping)
   {
-    if (target == VirtualAxis.None)
+    Int32 axisValue = GetPhysicalAxisValue(inputState, axisMapping.Source);
+
+    if (!axisMapping.Invert)
+    {
+      return axisValue;
+    }
+
+    return axisMapping.Source switch
+    {
+      PhysicalAxis.LeftTrigger or PhysicalAxis.RightTrigger => 1023 - axisValue,
+      PhysicalAxis.DpadX or PhysicalAxis.DpadY => -axisValue,
+      _ => InvertAxisValue(axisValue)
+    };
+  }
+
+  private static Int32 CombineAxisValues(VirtualAxis targetAxis, Int32 currentValue, Int32 additionalValue) =>
+    targetAxis switch
+    {
+      VirtualAxis.LeftTrigger or VirtualAxis.RightTrigger => Math.Max(currentValue, additionalValue),
+      VirtualAxis.DpadX or VirtualAxis.DpadY => Math.Clamp(currentValue + additionalValue, -1, 1),
+      _ => Math.Abs((Int64)additionalValue) >= Math.Abs((Int64)currentValue)
+          ? additionalValue : currentValue
+    };
+
+  public Int32 ResolveAxis(InputState inputState, VirtualAxis targetAxis)
+  {
+    if (targetAxis == VirtualAxis.None)
     {
       return 0;
     }
 
     Int32 resolvedValue = 0;
 
-    foreach (InputMapping mapping in _Mappings)
+    foreach (InputMapping mapping in _InputMappings)
     {
       Int32? contribution = mapping switch
       {
-        AxisMapping axisMapping when axisMapping.Target == target =>
+        AxisMapping axisMapping when axisMapping.Target == targetAxis =>
           ResolveAxisMappingValue(inputState, axisMapping),
-        ButtonToAxisMapping buttonMapping when buttonMapping.Target == target &&
+        ButtonToAxisMapping buttonMapping when buttonMapping.Target == targetAxis &&
           IsPhysicalButtonPressed(inputState, buttonMapping.Source) => buttonMapping.PressedValue,
         _ => null
       };
@@ -128,46 +166,9 @@ public sealed class InputMapper
         continue;
       }
 
-      resolvedValue = CombineAxisValues(target, resolvedValue, contribution.Value);
+      resolvedValue = CombineAxisValues(targetAxis, resolvedValue, contribution.Value);
     }
 
     return resolvedValue;
   }
-
-  private static Int32 ResolveAxisMappingValue(InputState inputState, AxisMapping mapping)
-  {
-    Int32 value = GetPhysicalAxisValue(inputState, mapping.Source);
-
-    if (!mapping.Invert)
-    {
-      return value;
-    }
-
-    return mapping.Source switch
-    {
-      PhysicalAxis.LeftTrigger or PhysicalAxis.RightTrigger => 1023 - value,
-      PhysicalAxis.DpadX or PhysicalAxis.DpadY => -value,
-      _ => InvertAxisValue(value)
-    };
-  }
-
-  private static Boolean IsAxisActivated(Int32 value, AxisDirection direction, Int32 threshold) =>
-    direction switch
-    {
-      AxisDirection.Positive => value >= threshold,
-      AxisDirection.Negative => value <= -threshold,
-      _ => false
-    };
-
-  private static Int32 CombineAxisValues(VirtualAxis target, Int32 currentValue, Int32 additionalValue) =>
-    target switch
-    {
-      VirtualAxis.LeftTrigger or VirtualAxis.RightTrigger => Math.Max(currentValue, additionalValue),
-      VirtualAxis.DpadX or VirtualAxis.DpadY => Math.Clamp(currentValue + additionalValue, -1, 1),
-      _ => Math.Abs((Int64)additionalValue) >= Math.Abs((Int64)currentValue)
-          ? additionalValue : currentValue
-    };
-
-  private static Int32 InvertAxisValue(Int32 value) =>
-    Math.Clamp(-value, Int16.MinValue, Int16.MaxValue);
 }

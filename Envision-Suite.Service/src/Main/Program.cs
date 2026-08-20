@@ -7,6 +7,90 @@ namespace EnvisionSuite.Service.src.Main;
 
 public static class Program
 {
+  private static void RegisterShutdownHandler(CancellationTokenSource cancellationTokenSource)
+  {
+    Console.CancelKeyPress += (_, e) =>
+    {
+      e.Cancel = true;
+      cancellationTokenSource.Cancel();
+      Console.WriteLine("\nShutdown requested...");
+    };
+  }
+
+  private static void WriteControllerNotFoundError()
+  {
+    Console.Error.WriteLine("""
+    Troubleshooting:
+      1. Make sure the controller is connected
+      2. Check if the device appears in: ls /dev/input/event*
+      3. Check permissions: ls -la /dev/input/
+
+    To grant permissions, create /etc/udev/rules.d/99-EnvisionSuite.Core.rules:
+      SUBSYSTEM=="input", ATTRS{idVendor}=="1b1c", ATTRS{idProduct}=="3a05", MODE="0666"
+      SUBSYSTEM=="hidraw", ATTRS{idVendor}=="1b1c", ATTRS{idProduct}=="3a05", MODE="0666"
+      KERNEL=="uinput", MODE="0666"
+
+    Then reload udev: sudo udevadm control --reload && sudo udevadm trigger
+    """);
+  }
+
+  private static ExitCode RunBridge(DiscoveredDevices discoveredDevices, EvdevReader evdevReader, HidrawReader? hidrawReader, CancellationToken cancellationToken)
+  {
+    List<EvdevReader> additionalEvdevDevices = [];
+
+    try
+    {
+      foreach (String additionalEvdevPath in discoveredDevices.AdditionalEvdevPaths)
+      {
+        EvdevReader? additionalEvdevReader = EvdevReader.Open(additionalEvdevPath);
+        String resultMessage = $"[warning] Failed to grab {additionalEvdevPath}";
+
+        if (additionalEvdevReader is not null)
+        {
+          additionalEvdevDevices.Add(additionalEvdevReader);
+          resultMessage = $"Grabbed: {additionalEvdevPath}";
+        }
+
+        Console.WriteLine(resultMessage);
+      }
+
+      Console.WriteLine("\nCreating virtual Xbox controller...");
+      using VirtualGamepad? virtualGamepad = VirtualGamepad.Create();
+      if (virtualGamepad is null)
+      {
+        Console.Error.WriteLine("""
+        Failed to create virtual gamepad.
+        Make sure uinput module is loaded: sudo modprobe uinput
+        """);
+        return ExitCode.VirtualGamepadUnavailable;
+      }
+
+      Console.WriteLine("Created: Xbox Elite 2 Virtual Controller\n");
+
+      Console.WriteLine("Bridge service started. Press Ctrl+C to exit.");
+      BridgeService bridge = new(evdevReader, hidrawReader, virtualGamepad);
+      bridge.RunBridge(cancellationToken);
+    }
+    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+    {
+      return ExitCode.Success;
+    }
+    catch (Exception exception)
+    {
+      Console.Error.WriteLine($"[error] {exception.Message}");
+      return ExitCode.Failure;
+    }
+    finally
+    {
+      for (Int32 index = additionalEvdevDevices.Count - 1; index >= 0; index--)
+      {
+        additionalEvdevDevices[index].Dispose();
+      }
+    }
+
+    return ExitCode.Success;
+  }
+
   public static Int32 Main()
   {
     using CancellationTokenSource cancellationTokenSource = new();
@@ -43,88 +127,5 @@ public static class Program
 
     ExitCode exitCode = RunBridge(discoveredDevices, evdevReader, hidrawReader, cancellationTokenSource.Token);
     return (Int32)exitCode;
-  }
-
-  private static ExitCode RunBridge(DiscoveredDevices discoveredDevices, EvdevReader evdevReader, HidrawReader? hidrawReader, CancellationToken cancellationToken)
-  {
-    List<EvdevReader> additionalEvdevDevices = [];
-
-    try
-    {
-      foreach (String additionalEvdevPath in discoveredDevices.AdditionalEvdevPaths)
-      {
-        EvdevReader? additionalEvdevReader = EvdevReader.Open(additionalEvdevPath);
-        String resultMessage = $"[warning] Failed to grab {additionalEvdevPath}";
-
-        if (additionalEvdevReader is not null)
-        {
-          additionalEvdevDevices.Add(additionalEvdevReader);
-          resultMessage = $"Grabbed: {additionalEvdevPath}";
-        }
-
-        Console.WriteLine(resultMessage);
-      }
-
-      Console.WriteLine("\nCreating virtual Xbox controller...");
-      using VirtualGamepad? virtualGamepad = VirtualGamepad.Create();
-      if (virtualGamepad is null)
-      {
-        Console.Error.WriteLine("""
-        Failed to create virtual gamepad.
-        Make sure uinput module is loaded: sudo modprobe uinput
-        """);
-        return ExitCode.VirtualGamepadUnavailable;
-      }
-
-      Console.WriteLine("Created: Xbox Elite 2 Virtual Controller\n");
-
-      BridgeService bridge = new(evdevReader, hidrawReader, virtualGamepad);
-      bridge.Run(cancellationToken);
-    }
-    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-    {
-      return ExitCode.Success;
-    }
-    catch (Exception exception)
-    {
-      Console.Error.WriteLine($"Error: {exception.Message}");
-      return ExitCode.Failure;
-    }
-    finally
-    {
-      for (Int32 index = additionalEvdevDevices.Count - 1; index >= 0; index--)
-      {
-        additionalEvdevDevices[index].Dispose();
-      }
-    }
-
-    return ExitCode.Success;
-  }
-
-  private static void RegisterShutdownHandler(CancellationTokenSource cancellationTokenSource)
-  {
-    Console.CancelKeyPress += (_, e) =>
-    {
-      e.Cancel = true;
-      cancellationTokenSource.Cancel();
-      Console.WriteLine("\nShutdown requested...");
-    };
-  }
-
-  private static void WriteControllerNotFoundError()
-  {
-    Console.Error.WriteLine("""
-    Troubleshooting:
-      1. Make sure the controller is connected
-      2. Check if the device appears in: ls /dev/input/event*
-      3. Check permissions: ls -la /dev/input/
-
-    To grant permissions, create /etc/udev/rules.d/99-EnvisionSuite.Core.rules:
-      SUBSYSTEM=="input", ATTRS{idVendor}=="1b1c", ATTRS{idProduct}=="3a05", MODE="0666"
-      SUBSYSTEM=="hidraw", ATTRS{idVendor}=="1b1c", ATTRS{idProduct}=="3a05", MODE="0666"
-      KERNEL=="uinput", MODE="0666"
-
-    Then reload udev: sudo udevadm control --reload && sudo udevadm trigger
-    """);
   }
 }

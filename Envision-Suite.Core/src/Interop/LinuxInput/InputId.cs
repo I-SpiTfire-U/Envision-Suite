@@ -3,8 +3,7 @@ using System.Runtime.InteropServices;
 namespace EnvisionSuite.Core.Interop.LinuxInput;
 
 /// <summary>
-///   Input device identification structure.
-///   Contains bus type and USB vendor/product/version IDs.
+///   Input device identification structure. Contains bus type and USB vendor/product/version IDs.
 /// </summary>
 /// <remarks>
 ///   This maps to the kernel's <c>struct input_id</c> defined in <c>linux/input.h</c>.
@@ -17,22 +16,22 @@ public readonly struct InputId
   public readonly UInt16 BusType;
 
   /// <summary>USB Vendor ID (VID).</summary>
-  public readonly UInt16 Vendor;
+  public readonly UInt16 VendorId;
 
   /// <summary>USB Product ID (PID).</summary>
-  public readonly UInt16 Product;
+  public readonly UInt16 ProductId;
 
   /// <summary>Device version number.</summary>
-  public readonly UInt16 Version;
+  public readonly UInt16 VersionNumber;
 
   /// <summary>
-  ///     Creates a new input device identification.
+  ///   Creates a new input device identification.
   /// </summary>
-  public InputId(UInt16 busType, UInt16 vendor, UInt16 product, UInt16 version)
+  public InputId(UInt16 busType, UInt16 vendorId, UInt16 productId, UInt16 versionNumber)
   {
     BusType = busType;
-    Vendor = vendor;
-    Product = product;
-    Version = version;
+    VendorId = vendorId;
+    ProductId = productId;
+    VersionNumber = versionNumber;
   }
 }

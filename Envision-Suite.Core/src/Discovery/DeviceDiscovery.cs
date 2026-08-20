@@ -4,7 +4,7 @@ using System.Globalization;
 namespace EnvisionSuite.Core.Discovery;
 
 /// <summary>
-///   Discovers Scuf Envision Pro V2 controller devices by scanning /sys/class.
+///   Discovers SCUF Envision Pro V2 controller devices by scanning /sys/class.
 ///   Finds both evdev (input events) and hidraw (raw HID reports) devices
 ///   by matching the controller's USB vendor/product IDs.
 /// </summary>
@@ -15,9 +15,9 @@ public static class DeviceDiscovery
   private const Byte ScufInputInterfaceNumber = 0x03;
 
   /// <summary>
-  ///   Searches for connected Scuf Envision Pro V2 controller devices.
+  ///   Searches for connected SCUF Envision Pro V2 controller devices.
   ///   Scans /sys/class/input for evdev devices and /sys/class/hidraw for hidraw devices
-  ///   matching the Scuf vendor/product IDs.
+  ///   matching the SCUF vendor/product IDs.
   /// </summary>
   /// <returns>
   ///   A <see cref="DiscoveredDevices" /> object containing paths to all controller devices,
@@ -31,7 +31,7 @@ public static class DeviceDiscovery
     if (evdevPath is null)
     {
       Console.Error.WriteLine($"""
-      Error: Could not find Scuf Envision Pro controller evdev device.
+      Error: Could not find SCUF Envision Pro controller evdev device.
       Looking for VID={ScufUSBVendorId:x4} PID={ScufUSBProductId:x4}
       """);
       return null;
@@ -51,7 +51,7 @@ public static class DeviceDiscovery
   }
 
   /// <summary>
-  ///   Finds all evdev devices matching the Scuf controller.
+  ///   Finds all evdev devices matching the SCUF controller.
   ///   The controller exposes multiple event devices - we identify the primary joystick
   ///   device (which has a js* handler) and collect secondary devices for grabbing.
   /// </summary>
@@ -184,7 +184,7 @@ public static class DeviceDiscovery
   }
 
   /// <summary>
-  ///   Finds the hidraw device for the Scuf controller by scanning /sys/class/hidraw.
+  ///   Finds the hidraw device for the SCUF controller by scanning /sys/class/hidraw.
   ///   Parses the HID_ID field in uevent files to match the controller's vendor/product IDs.
   /// </summary>
   /// <returns>

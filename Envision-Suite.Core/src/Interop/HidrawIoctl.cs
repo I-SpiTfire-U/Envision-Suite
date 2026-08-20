@@ -10,8 +10,7 @@ namespace EnvisionSuite.Core.Interop;
 public static class HidrawIoctl
 {
   /// <summary>
-  ///   HIDIOCGRAWINFO - Get raw device info (vendor/product IDs).
-  ///   <c>_IOR('H', 0x03, struct hidraw_devinfo)</c> = 0x80084803
+  ///   HIDIOCGRAWINFO - Get raw device info (vendor/product IDs). <c>_IOR('H', 0x03, struct hidraw_devinfo)</c> = 0x80084803
   /// </summary>
   public const UIntPtr HIDIOCGRAWINFO = 0x80084803;
 

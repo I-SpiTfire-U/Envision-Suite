@@ -5,49 +5,35 @@ namespace EnvisionSuite.Core.Input;
 
 /// <summary>
 ///   Reads input events from a Linux evdev device.
-///   Evdev (event device) is the Linux kernel's interface for input devices,
-///   providing structured events for buttons, axes, and other input types.
-///   This class opens the device in non-blocking mode and can optionally grab it
-///   exclusively to prevent other applications from receiving its events.
 /// </summary>
+/// <remarks>
+///   Evdev is the Linux kernel's interface for input devices.
+///   This class opens a device in non-blocking mode and can optionally grab it
+///   exclusively to prevent other applications from receiving its events.
+/// </remarks>
 public sealed class EvdevReader : IDisposable
 {
-  private Boolean _Disposed;
-  private Boolean _Grabbed;
-
-  private EvdevReader(Int32 fileDescriptor)
-  {
-    FileDescriptor = fileDescriptor;
-  }
-
+  /// <summary>The native file descriptor used for ioctl and libc operations.</summary>
   public Int32 FileDescriptor { get; }
 
-  public void Dispose()
-  {
-    if (_Disposed)
-    {
-      return;
-    }
+  private Boolean _Grabbed;
+  private Boolean _Disposed;
 
-    _Disposed = true;
-    ReleaseGrab();
-    Libc.Close(FileDescriptor);
-  }
+  private EvdevReader(Int32 fileDescriptor) =>
+    FileDescriptor = fileDescriptor;
 
   /// <summary>
   ///   Opens an evdev device for reading.
   /// </summary>
-  /// <param name="devicePath">
-  ///   Path to the evdev device (e.g., "/dev/input/event5").
-  /// </param>
-  /// <param name="grabExclusive">
-  ///   If true, grabs the device exclusively using EVIOCGRAB ioctl.
-  ///   This prevents other applications (including games) from seeing
-  ///   the device's raw input, which is essential when bridging to a
-  ///   virtual controller to avoid double-input.
-  /// </param>
+  /// <param name="devicePath">The path to a given evdev device.</param>
+  /// <param name="grabExclusive">Grabs the device exclusively using EVIOCGRAB ioctl when true.</param>
+  /// <remarks>
+  ///   Exclusively grabbing prevents other applications from receiving a device's raw
+  ///   input. This is essential to avoid double-input when bridging to a virtual controller.
+  /// </remarks>
   /// <returns>
-  ///   An <see cref="EvdevReader" /> instance, or null if the device could not be opened.
+  ///   An <see cref="EvdevReader"/> instance if the device was successfully opened and, when
+  ///   requested, grabbed exclusively; otherwise <see langword="null"/>.
   /// </returns>
   public static EvdevReader? Open(String devicePath, Boolean grabExclusive = true)
   {
@@ -72,22 +58,22 @@ public sealed class EvdevReader : IDisposable
 
   /// <summary>
   ///   Grabs the device exclusively using the EVIOCGRAB ioctl.
-  ///   While grabbed, no other process can receive events from this device.
   /// </summary>
-  /// <returns>True if the grab succeeded, false otherwise.</returns>
+  /// <returns>
+  ///   <see langword="true"/> if the grab succeeded; otherwise <see langword="false"/>.
+  /// </returns>
   private Boolean TryGrab()
   {
     Int32 result = Libc.Ioctl(FileDescriptor, EvdevIoctl.EVIOCGRAB, 1);
-    if (result < 0)
+    if (result >= 0)
     {
-      Int32 nativeErrorNumber = Libc.GetLastError();
-      Console.Error.WriteLine($"Failed to grab device exclusively: {Libc.StrError(nativeErrorNumber)} (nativeErrorNumber={nativeErrorNumber})");
-
-      return false;
+      _Grabbed = true;
+      return true;
     }
 
-    _Grabbed = true;
-    return true;
+    Int32 nativeErrorNumber = Libc.GetLastError();
+    Console.Error.WriteLine($"[error] Failed to grab device exclusively: {Libc.StrError(nativeErrorNumber)} (nativeErrorNumber={nativeErrorNumber})");
+    return false;
   }
 
   private void ReleaseGrab()
@@ -102,33 +88,58 @@ public sealed class EvdevReader : IDisposable
   }
 
   /// <summary>
-  ///   Reads pending input events from the device.
-  ///   This method is non-blocking - if no events are available, it returns 0 immediately.
+  ///   Reads pending input events from the device. This method is non-blocking.
+  ///   If no events are available, it returns 0 immediately.
   /// </summary>
-  /// <param name="buffer">
-  ///   Buffer to receive the events. Should be large enough to hold multiple events
+  /// <param name="eventBuffer">
+  ///   A buffer to receive events. Should be large enough to hold multiple events
   ///   (typically 64 is sufficient for a single poll cycle).
   /// </param>
   /// <returns>
   ///   The number of events read, 0 if no events were available, or -1 on error.
   /// </returns>
-  public unsafe Int32 ReadEvents(Span<InputEvent> buffer)
+  public unsafe Int32 ReadEvents(Span<InputEvent> eventBuffer)
   {
     if (_Disposed)
     {
       return -1;
     }
 
-    fixed (InputEvent* ptr = buffer)
+    fixed (InputEvent* ptr = eventBuffer)
     {
-      IntPtr bytesRead = Libc.Read(FileDescriptor, ptr, (UIntPtr)(buffer.Length * InputEvent.Size));
+      IntPtr bytesRead = Libc.Read(FileDescriptor, ptr, (UIntPtr)(eventBuffer.Length * InputEvent.Size));
 
-      if (bytesRead < 0)
+      if (bytesRead >= 0)
       {
-        Int32 nativeErrorNumber = Libc.GetLastError();
-        return nativeErrorNumber == Libc.EAGAIN ? 0 : -1;
+        return (Int32)(bytesRead / InputEvent.Size);
       }
-      return (Int32)(bytesRead / InputEvent.Size);
+
+      Int32 nativeErrorNumber = Libc.GetLastError();
+      return nativeErrorNumber == Libc.EAGAIN ? 0 : -1;
     }
+  }
+
+  public void Dispose()
+  {
+    ReleaseResources();
+    GC.SuppressFinalize(this);
+  }
+
+  private void ReleaseResources()
+  {
+    if (_Disposed)
+    {
+      return;
+    }
+
+    _Disposed = true;
+
+    ReleaseGrab();
+    Libc.Close(FileDescriptor);
+  }
+
+  ~EvdevReader()
+  {
+    ReleaseResources();
   }
 }
