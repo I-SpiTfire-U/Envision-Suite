@@ -49,6 +49,7 @@ public static class ButtonCodes
   /// <summary>RT / R2 (standard). Used by Envision Pro V2 for R3.</summary>
   public const UInt16 BTN_TR2 = 0x139;
 
+  // <summary>Used by Envision Pro V2 for Guide.</summary>
   public const UInt16 BTN_SELECT = 0x13a;
   public const UInt16 BTN_START = 0x13b;
   public const UInt16 BTN_MODE = 0x13c;

@@ -117,7 +117,7 @@ public static class EnvisionMapping
         inputState.ButtonStart = buttonIsPressed;
         break;
 
-      case ButtonCodes.BTN_MODE:
+      case ButtonCodes.BTN_SELECT:
         inputState.ButtonGuide = buttonIsPressed;
         break;
 

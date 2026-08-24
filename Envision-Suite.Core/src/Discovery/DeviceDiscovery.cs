@@ -11,13 +11,14 @@ namespace EnvisionSuite.Core.Discovery;
 public static class DeviceDiscovery
 {
   private const UInt16 ScufUSBVendorId = 0x1b1c;
-  private const UInt16 ScufUSBProductId = 0x3a08;
+  private const UInt16 ScufUSBWirelessProductId = 0x3a08;
+  private const UInt16 ScufUSBWiredProductId = 0x3a05;
   private const Byte ScufInputInterfaceNumber = 0x03;
 
   /// <summary>
   ///   Searches for connected SCUF Envision Pro V2 controller devices.
   ///   Scans /sys/class/input for evdev devices and /sys/class/hidraw for hidraw devices
-  ///   matching the SCUF vendor/product IDs.
+  ///   matching the SCUF vendor/product IDs for wired or wireless operation.
   /// </summary>
   /// <returns>
   ///   A <see cref="DiscoveredDevices" /> object containing paths to all controller devices,
@@ -32,7 +33,7 @@ public static class DeviceDiscovery
     {
       Console.Error.WriteLine($"""
       Error: Could not find SCUF Envision Pro controller evdev device.
-      Looking for VID={ScufUSBVendorId:x4} PID={ScufUSBProductId:x4}
+      Looking for VID={ScufUSBVendorId:x4} PID={ScufUSBWirelessProductId:x4} or PID={ScufUSBWiredProductId:x4}
       """);
       return null;
     }
@@ -109,7 +110,7 @@ public static class DeviceDiscovery
 
       Boolean vendorParsedSuccessfully = UInt16.TryParse(vendorString, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out UInt16 vendorId);
       Boolean productParsedSuccessfully = UInt16.TryParse(productString, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out UInt16 productId);
-      if (!vendorParsedSuccessfully || !productParsedSuccessfully || vendorId != ScufUSBVendorId || productId != ScufUSBProductId)
+      if (!vendorParsedSuccessfully || !productParsedSuccessfully || vendorId != ScufUSBVendorId || (productId != ScufUSBWirelessProductId && productId != ScufUSBWiredProductId))
       {
         continue;
       }
@@ -247,7 +248,7 @@ public static class DeviceDiscovery
 
         if (UInt32.TryParse(parts[1], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out UInt32 vendor) &&
             UInt32.TryParse(parts[2], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out UInt32 product) &&
-            vendor == ScufUSBVendorId && product == ScufUSBProductId)
+            vendor == ScufUSBVendorId && (product == ScufUSBWirelessProductId || product == ScufUSBWiredProductId))
         {
           return $"/dev/{Path.GetFileName(hidrawDirectory)}";
         }
