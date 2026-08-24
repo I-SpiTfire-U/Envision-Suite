@@ -15,40 +15,48 @@ public static class DeviceDiscovery
   private const UInt16 ScufUSBWiredProductId = 0x3a05;
   private const Byte ScufInputInterfaceNumber = 0x03;
 
+  private static Boolean IsValidProductId(UInt16 productId) =>
+    productId == ScufUSBWirelessProductId || productId == ScufUSBWiredProductId;
+
   /// <summary>
-  ///   Searches for connected SCUF Envision Pro V2 controller devices.
-  ///   Scans /sys/class/input for evdev devices and /sys/class/hidraw for hidraw devices
-  ///   matching the SCUF vendor/product IDs for wired or wireless operation.
+  ///   Checks if an event device has an associated js* (joystick) device.
+  ///   The js* device indicates this is the main gamepad interface with button support,
+  ///   as opposed to secondary interfaces like mouse or keyboard emulation.
   /// </summary>
-  /// <returns>
-  ///   A <see cref="DiscoveredDevices" /> object containing paths to all controller devices,
-  ///   or null if the controller is not found.
-  /// </returns>
-  public static DiscoveredDevices? FindController()
+  /// <param name="eventDirectory">Path to the event directory in /sys/class/input.</param>
+  /// <returns>True if a js* sibling device exists, indicating this is the main joystick.</returns>
+  private static Boolean HasJoystickHandler(String eventDirectory)
   {
-    (String? evdevPath, ImmutableArray<String> additionalEvdevPaths) = FindAllEvdevDevices();
-    String? hidrawDevicePath = FindHidrawDevice();
-
-    if (evdevPath is null)
+    FileSystemInfo? linkTarget;
+    try
     {
-      Console.Error.WriteLine($"""
-      Error: Could not find SCUF Envision Pro controller evdev device.
-      Looking for VID={ScufUSBVendorId:x4} PID={ScufUSBWirelessProductId:x4} or PID={ScufUSBWiredProductId:x4}
-      """);
-      return null;
+      linkTarget = Directory.ResolveLinkTarget(eventDirectory, true);
+    }
+    catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+    {
+      return false;
     }
 
-    if (hidrawDevicePath is null)
+    if (linkTarget is null)
     {
-      Console.Error.WriteLine("[warning] Could not find hidraw device. R2 trigger may not work correctly.");
+      return false;
     }
 
-    return new DiscoveredDevices
+    String? parentDirectory = Path.GetDirectoryName(linkTarget.FullName);
+    if (parentDirectory is null || !Directory.Exists(parentDirectory))
     {
-      EvdevDevicePath = evdevPath,
-      HidrawDevicePath = hidrawDevicePath,
-      AdditionalEvdevPaths = additionalEvdevPaths
-    };
+      return false;
+    }
+
+    try
+    {
+      String[] jsEntries = Directory.GetDirectories(parentDirectory, "js*");
+      return jsEntries.Length > 0;
+    }
+    catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+    {
+      return false;
+    }
   }
 
   /// <summary>
@@ -110,7 +118,7 @@ public static class DeviceDiscovery
 
       Boolean vendorParsedSuccessfully = UInt16.TryParse(vendorString, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out UInt16 vendorId);
       Boolean productParsedSuccessfully = UInt16.TryParse(productString, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out UInt16 productId);
-      if (!vendorParsedSuccessfully || !productParsedSuccessfully || vendorId != ScufUSBVendorId || (productId != ScufUSBWirelessProductId && productId != ScufUSBWiredProductId))
+      if (!vendorParsedSuccessfully || !productParsedSuccessfully || vendorId != ScufUSBVendorId || !IsValidProductId(productId))
       {
         continue;
       }
@@ -143,45 +151,45 @@ public static class DeviceDiscovery
     return (primaryJoystickDevice, additionalEvdevPaths.ToImmutableArray());
   }
 
-  /// <summary>
-  ///   Checks if an event device has an associated js* (joystick) device.
-  ///   The js* device indicates this is the main gamepad interface with button support,
-  ///   as opposed to secondary interfaces like mouse or keyboard emulation.
-  /// </summary>
-  /// <param name="eventDirectory">Path to the event directory in /sys/class/input.</param>
-  /// <returns>True if a js* sibling device exists, indicating this is the main joystick.</returns>
-  private static Boolean HasJoystickHandler(String eventDirectory)
+  private static Boolean IsUsbInterface(String hidrawDirectory, Byte expectedInterfaceNumber)
   {
-    FileSystemInfo? linkTarget;
+    DirectoryInfo? deviceDirectory;
+
     try
     {
-      linkTarget = Directory.ResolveLinkTarget(eventDirectory, true);
+      deviceDirectory = Directory.ResolveLinkTarget(hidrawDirectory, returnFinalTarget: true) as DirectoryInfo;
     }
     catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
     {
       return false;
     }
 
-    if (linkTarget is null)
+    while (deviceDirectory is not null)
     {
-      return false;
+      String interfaceNumberPath = Path.Combine(deviceDirectory.FullName, "bInterfaceNumber");
+
+      if (!File.Exists(interfaceNumberPath))
+      {
+        deviceDirectory = deviceDirectory.Parent;
+        continue;
+      }
+
+      String interfaceNumberText;
+
+      try
+      {
+        interfaceNumberText = File.ReadAllText(interfaceNumberPath).Trim();
+      }
+      catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+      {
+        return false;
+      }
+
+      return Byte.TryParse(interfaceNumberText, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out Byte interfaceNumber)
+        && interfaceNumber == expectedInterfaceNumber;
     }
 
-    String? parentDirectory = Path.GetDirectoryName(linkTarget.FullName);
-    if (parentDirectory is null || !Directory.Exists(parentDirectory))
-    {
-      return false;
-    }
-    
-    try
-    {
-      String[] jsEntries = Directory.GetDirectories(parentDirectory, "js*");
-      return jsEntries.Length > 0;
-    }
-    catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-    {
-      return false;
-    }
+    return false;
   }
 
   /// <summary>
@@ -246,9 +254,9 @@ public static class DeviceDiscovery
           continue;
         }
 
-        if (UInt32.TryParse(parts[1], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out UInt32 vendor) &&
-            UInt32.TryParse(parts[2], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out UInt32 product) &&
-            vendor == ScufUSBVendorId && (product == ScufUSBWirelessProductId || product == ScufUSBWiredProductId))
+        if (UInt32.TryParse(parts[1], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out UInt32 vendorId) &&
+            UInt32.TryParse(parts[2], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out UInt32 productId) &&
+            vendorId == ScufUSBVendorId && IsValidProductId((UInt16)productId))
         {
           return $"/dev/{Path.GetFileName(hidrawDirectory)}";
         }
@@ -258,44 +266,39 @@ public static class DeviceDiscovery
     return null;
   }
 
-  private static Boolean IsUsbInterface(String hidrawDirectory, Byte expectedInterfaceNumber)
+  /// <summary>
+  ///   Searches for connected SCUF Envision Pro V2 controller devices.
+  ///   Scans /sys/class/input for evdev devices and /sys/class/hidraw for hidraw devices
+  ///   matching the SCUF vendor/product IDs for wired or wireless operation.
+  /// </summary>
+  /// <returns>
+  ///   A <see cref="DiscoveredDevices" /> object containing paths to all controller devices,
+  ///   or null if the controller is not found.
+  /// </returns>
+  public static DiscoveredDevices? FindController()
   {
-    DirectoryInfo? deviceDirectory;
+    (String? evdevPath, ImmutableArray<String> additionalEvdevPaths) = FindAllEvdevDevices();
+    String? hidrawDevicePath = FindHidrawDevice();
 
-    try
+    if (evdevPath is null)
     {
-      deviceDirectory = Directory.ResolveLinkTarget(hidrawDirectory, returnFinalTarget: true) as DirectoryInfo;
-    }
-    catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-    {
-      return false;
-    }
-
-    while (deviceDirectory is not null)
-    {
-      String interfaceNumberPath = Path.Combine(deviceDirectory.FullName, "bInterfaceNumber");
-
-      if (!File.Exists(interfaceNumberPath))
-      {
-        deviceDirectory = deviceDirectory.Parent;
-        continue;
-      }
-
-      String interfaceNumberText;
-
-      try
-      {
-        interfaceNumberText = File.ReadAllText(interfaceNumberPath).Trim();
-      }
-      catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-      {
-        return false;
-      }
-
-      return Byte.TryParse(interfaceNumberText, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out Byte interfaceNumber)
-        && interfaceNumber == expectedInterfaceNumber;
+      Console.Error.WriteLine($"""
+      Error: Could not find SCUF Envision Pro controller evdev device.
+      Looking for VID={ScufUSBVendorId:x4} PID={ScufUSBWirelessProductId:x4} or PID={ScufUSBWiredProductId:x4}
+      """);
+      return null;
     }
 
-    return false;
+    if (hidrawDevicePath is null)
+    {
+      Console.Error.WriteLine("[warning] Could not find hidraw device. R2 trigger may not work correctly.");
+    }
+
+    return new DiscoveredDevices
+    {
+      EvdevDevicePath = evdevPath,
+      HidrawDevicePath = hidrawDevicePath,
+      AdditionalEvdevPaths = additionalEvdevPaths
+    };
   }
 }
